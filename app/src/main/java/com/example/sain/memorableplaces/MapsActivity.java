@@ -2,6 +2,7 @@ package com.example.sain.memorableplaces;
 
 import android.Manifest;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Address;
 import android.location.Geocoder;
@@ -21,13 +22,18 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
 
     private GoogleMap mMap;
+    ArrayList<LatLng> newLocations = new ArrayList<>();
+    LatLng latLng = null;
+    Marker marker = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,9 +43,22 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
 
+        Intent intent = getIntent();
+        if (intent.getIntExtra("viewPosition", 0) != 0) {
+            latLng = intent.getParcelableExtra("LatLng");
+        }
+
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
         }
+    }
+
+    @Override
+    public void onBackPressed() {
+        Intent intent = new Intent();
+        intent.putParcelableArrayListExtra("newLocations", newLocations);
+        setResult(RESULT_OK, intent);
+        super.onBackPressed();
     }
 
     @Override
@@ -59,22 +78,35 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             public void onMapLongClick(LatLng latLng) {
                 Toast.makeText(MapsActivity.this, "Location Saved", Toast.LENGTH_SHORT).show();
 
-                String address = "";
-                Geocoder geocoder = new Geocoder(MapsActivity.this);
-                try {
-                    List<Address> addressList = geocoder.getFromLocation(latLng.latitude, latLng.longitude, 1);
-                    if (addressList.size() > 0) {
-                        address = addressList.get(0).getAddressLine(0);
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
+                String address = getAddress(latLng);
 
                 mMap.addMarker(new MarkerOptions().position(latLng).title(address)
                         .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE)));
+
+                newLocations.add(latLng);
             }
         });
         initialiseLocation();
+
+        if (latLng != null) {
+            mMap.addMarker(new MarkerOptions().position(latLng).title(getAddress(latLng))
+                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE)));
+            mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 16));
+        }
+    }
+
+    private String getAddress(LatLng latLng) {
+        String address = "";
+        Geocoder geocoder = new Geocoder(MapsActivity.this);
+        try {
+            List<Address> addressList = geocoder.getFromLocation(latLng.latitude, latLng.longitude, 1);
+            if (addressList.size() > 0) {
+                address = addressList.get(0).getAddressLine(0);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return address;
     }
 
     private void initialiseLocation() {
@@ -112,8 +144,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private void updateLocation(Location location) {
+        if (marker != null) {
+            marker.remove();
+        }
         LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
-        mMap.addMarker(new MarkerOptions().position(latLng).title("You're here"));
-        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 16));
+        marker = mMap.addMarker(new MarkerOptions().position(latLng).title("You're here"));
+        if (this.latLng == null) {
+            mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 16));
+        }
     }
 }
