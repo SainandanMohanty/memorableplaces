@@ -1,8 +1,8 @@
 package com.example.sain.memorableplaces;
 
+import android.content.Context;
 import android.content.Intent;
-import android.location.Address;
-import android.location.Geocoder;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
@@ -12,24 +12,39 @@ import android.widget.ListView;
 
 import com.google.android.gms.maps.model.LatLng;
 
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
 
+    SharedPreferences sharedPreferences;
     ArrayList<String> list = new ArrayList<>();
     ArrayAdapter<String> arrayAdapter;
     ArrayList<LatLng> latLngs = new ArrayList<>();
-    HashMap<LatLng, Date> timestamps = new HashMap<>();
+    ArrayList<String> identifiers = new ArrayList<>();
 
     @Override
+    @SuppressWarnings("unchecked")
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        sharedPreferences = this.getSharedPreferences("com.example.sain.memorableplaces", Context.MODE_PRIVATE);
+
+        try {
+            ArrayList<String> latitudes = (ArrayList<String>) ObjectSerializer.deserialize(
+                    sharedPreferences.getString("latitudes", ObjectSerializer.serialize(new ArrayList<>())));
+            ArrayList<String> longitudes = (ArrayList<String>) ObjectSerializer.deserialize(
+                    sharedPreferences.getString("longitudes", ObjectSerializer.serialize(new ArrayList<>())));
+
+            for (int i = 0; i < Math.min(latitudes.size(), longitudes.size()); i++) {
+                latLngs.add(new LatLng(Double.parseDouble(latitudes.get(i)), Double.parseDouble(longitudes.get(i))));
+            }
+
+            identifiers = (ArrayList<String>) ObjectSerializer.deserialize(
+                    sharedPreferences.getString("identifiers", ObjectSerializer.serialize(new ArrayList<>())));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
         list.add("Add a new place...");
 
@@ -47,6 +62,8 @@ public class MainActivity extends AppCompatActivity {
                 startActivityForResult(intent, 100);
             }
         });
+
+        updateListView();
     }
 
     @Override
@@ -54,36 +71,33 @@ public class MainActivity extends AppCompatActivity {
         super.onActivityResult(requestCode, resultCode, data);
 
         if (requestCode == 100 && resultCode == RESULT_OK) {
-            ArrayList<LatLng> arrayList = data.getParcelableArrayListExtra("newLocations");
-            latLngs.addAll(arrayList);
+            ArrayList<LatLng> latLngArrayList = data.getParcelableArrayListExtra("newLocations");
+            latLngs.addAll(latLngArrayList);
 
-            @SuppressWarnings("unchecked")
-            HashMap<LatLng, Date> hashMap = (HashMap<LatLng, Date>) data.getSerializableExtra("timestamps");
-            timestamps.putAll(hashMap);
+            ArrayList<String> stringArrayList = data.getStringArrayListExtra("identifiers");
+            identifiers.addAll(stringArrayList);
 
             updateListView();
+
+            try {
+                ArrayList<String> latitudes = new ArrayList<>();
+                ArrayList<String> longitudes = new ArrayList<>();
+                for (LatLng latLng : latLngs) {
+                    latitudes.add(String.valueOf(latLng.latitude));
+                    longitudes.add(String.valueOf(latLng.longitude));
+                }
+
+                sharedPreferences.edit().putString("latitudes", ObjectSerializer.serialize(latitudes)).apply();
+                sharedPreferences.edit().putString("longitudes", ObjectSerializer.serialize(longitudes)).apply();
+                sharedPreferences.edit().putString("identifiers", ObjectSerializer.serialize(identifiers)).apply();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
 
     private void updateListView() {
-        for (LatLng latLng : latLngs) {
-            String title = null;
-
-            if (timestamps.containsKey(latLng)) {
-                SimpleDateFormat simpleDateFormat = new SimpleDateFormat("HH:mm:ss dd/MM/yyyy", Locale.getDefault());
-                title = simpleDateFormat.format(timestamps.get(latLng));
-            } else {
-                Geocoder geocoder = new Geocoder(this);
-                try {
-                    List<Address> addressList = geocoder.getFromLocation(latLng.latitude, latLng.longitude, 1);
-                    if (addressList.size() > 0) {
-                        title = addressList.get(0).getAddressLine(0);
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-
+        for (String title : identifiers) {
             if (!list.contains(title)) {
                 list.add(title);
             }

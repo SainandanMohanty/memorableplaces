@@ -28,7 +28,6 @@ import com.google.android.gms.maps.model.MarkerOptions;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 
@@ -36,7 +35,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private GoogleMap mMap;
     ArrayList<LatLng> newLocations = new ArrayList<>();
-    HashMap<LatLng, Date> timestamps = new HashMap<>();
+    ArrayList<String> identifiers = new ArrayList<>();
     LatLng latLng = null;
     Marker marker = null;
 
@@ -62,7 +61,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public void onBackPressed() {
         Intent intent = new Intent();
         intent.putParcelableArrayListExtra("newLocations", newLocations);
-        intent.putExtra("timestamps", timestamps);
+        intent.putExtra("identifiers", identifiers);
         setResult(RESULT_OK, intent);
         super.onBackPressed();
     }
@@ -98,15 +97,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         if (address.equals("")) {
             SimpleDateFormat simpleDateFormat = new SimpleDateFormat("HH:mm:ss dd/MM/yyyy", Locale.getDefault());
             title = simpleDateFormat.format(new Date());
-            timestamps.put(latLng, new Date());
         } else {
             title = address;
         }
 
         mMap.addMarker(new MarkerOptions().position(latLng).title(title)
                 .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE)));
-
         newLocations.add(latLng);
+        identifiers.add(title);
     }
 
     private String getAddress(LatLng latLng) {
