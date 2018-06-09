@@ -12,14 +12,19 @@ import android.widget.ListView;
 
 import com.google.android.gms.maps.model.LatLng;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
 
     ArrayList<String> list = new ArrayList<>();
     ArrayAdapter<String> arrayAdapter;
     ArrayList<LatLng> latLngs = new ArrayList<>();
+    HashMap<LatLng, Date> timestamps = new HashMap<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -36,7 +41,7 @@ public class MainActivity extends AppCompatActivity {
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                 Intent intent = new Intent(MainActivity.this, MapsActivity.class);
                 intent.putExtra("viewPosition", position);
-                if (position > 0) {
+                if (position != 0) {
                     intent.putExtra("LatLng", latLngs.get(position - 1));
                 }
                 startActivityForResult(intent, 100);
@@ -51,27 +56,37 @@ public class MainActivity extends AppCompatActivity {
         if (requestCode == 100 && resultCode == RESULT_OK) {
             ArrayList<LatLng> arrayList = data.getParcelableArrayListExtra("newLocations");
             latLngs.addAll(arrayList);
+
+            @SuppressWarnings("unchecked")
+            HashMap<LatLng, Date> hashMap = (HashMap<LatLng, Date>) data.getSerializableExtra("timestamps");
+            timestamps.putAll(hashMap);
+
             updateListView();
         }
     }
 
     private void updateListView() {
-        list.clear();
-        list.add("Add a new place...");
-
         for (LatLng latLng : latLngs) {
-            String address = "";
-            Geocoder geocoder = new Geocoder(this);
-            try {
-                List<Address> addressList = geocoder.getFromLocation(latLng.latitude, latLng.longitude, 1);
-                if (addressList.size() > 0) {
-                    address = addressList.get(0).getAddressLine(0);
+            String title = null;
+
+            if (timestamps.containsKey(latLng)) {
+                SimpleDateFormat simpleDateFormat = new SimpleDateFormat("HH:mm:ss dd/MM/yyyy", Locale.getDefault());
+                title = simpleDateFormat.format(timestamps.get(latLng));
+            } else {
+                Geocoder geocoder = new Geocoder(this);
+                try {
+                    List<Address> addressList = geocoder.getFromLocation(latLng.latitude, latLng.longitude, 1);
+                    if (addressList.size() > 0) {
+                        title = addressList.get(0).getAddressLine(0);
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
-            } catch (Exception e) {
-                e.printStackTrace();
             }
 
-            list.add(address);
+            if (!list.contains(title)) {
+                list.add(title);
+            }
         }
 
         arrayAdapter.notifyDataSetChanged();

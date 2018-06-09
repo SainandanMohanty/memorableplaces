@@ -25,13 +25,18 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 
-public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
+public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, GoogleMap.OnMapLongClickListener {
 
     private GoogleMap mMap;
     ArrayList<LatLng> newLocations = new ArrayList<>();
+    HashMap<LatLng, Date> timestamps = new HashMap<>();
     LatLng latLng = null;
     Marker marker = null;
 
@@ -57,6 +62,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public void onBackPressed() {
         Intent intent = new Intent();
         intent.putParcelableArrayListExtra("newLocations", newLocations);
+        intent.putExtra("timestamps", timestamps);
         setResult(RESULT_OK, intent);
         super.onBackPressed();
     }
@@ -73,19 +79,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
-        mMap.setOnMapLongClickListener(new GoogleMap.OnMapLongClickListener() {
-            @Override
-            public void onMapLongClick(LatLng latLng) {
-                Toast.makeText(MapsActivity.this, "Location Saved", Toast.LENGTH_SHORT).show();
-
-                String address = getAddress(latLng);
-
-                mMap.addMarker(new MarkerOptions().position(latLng).title(address)
-                        .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE)));
-
-                newLocations.add(latLng);
-            }
-        });
+        mMap.setOnMapLongClickListener(this);
         initialiseLocation();
 
         if (latLng != null) {
@@ -93,6 +87,26 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE)));
             mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 16));
         }
+    }
+
+    @Override
+    public void onMapLongClick(LatLng latLng) {
+        Toast.makeText(MapsActivity.this, "Location Saved", Toast.LENGTH_SHORT).show();
+
+        String title;
+        String address = getAddress(latLng);
+        if (address.equals("")) {
+            SimpleDateFormat simpleDateFormat = new SimpleDateFormat("HH:mm:ss dd/MM/yyyy", Locale.getDefault());
+            title = simpleDateFormat.format(new Date());
+            timestamps.put(latLng, new Date());
+        } else {
+            title = address;
+        }
+
+        mMap.addMarker(new MarkerOptions().position(latLng).title(title)
+                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE)));
+
+        newLocations.add(latLng);
     }
 
     private String getAddress(LatLng latLng) {
